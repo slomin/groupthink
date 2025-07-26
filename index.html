@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Groupthink</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Custom Styles -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .transition-all {
+            transition: all 0.3s ease-in-out;
+        }
+        .card-inner {
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+        .card.is-flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+        }
+        #confirmation-modal {
+            transition: opacity 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-full flex items-center justify-center p-4">
+
+    <!-- Main Application Container -->
+    <div id="app-container" class="w-full max-w-7xl mx-auto">
+
+        <!-- Login View -->
+        <div id="login-view" class="text-center">
+            <!-- App Image -->
+            <img src="image_1.jpg" alt="Groupthink Logo" class="w-48 h-auto mx-auto mb-4 rounded-lg shadow-lg">
+            
+            <h1 class="text-4xl font-bold text-cyan-400 mb-2">Groupthink</h1>
+            <p class="text-lg text-gray-400 mb-6">Select your role to join the session</p>
+            <div id="user-selection-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-w-4xl mx-auto">
+                <!-- User buttons will be injected here -->
+            </div>
+            <p id="moderator-taken-msg" class="text-yellow-400 mt-4 hidden"></p>
+        </div>
+
+        <!-- Poker Room View -->
+        <div id="poker-view" class="hidden w-full">
+            <header class="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-700">
+                <div class="flex items-center gap-3 mb-4 md:mb-0">
+                    <h1 class="text-3xl font-bold text-cyan-400">Groupthink</h1>
+                    <div id="connection-status" class="flex items-center gap-2">
+                        <div id="connection-dot" class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span id="connection-text" class="text-sm text-gray-400">Connected</span>
+                    </div>
+                </div>
+                <div class="text-center md:text-right">
+                    <p id="role-display" class="text-gray-400"></p>
+                    <p id="current-user-display" class="font-bold text-lg text-white"></p>
+                    <button id="logout-btn" class="hidden text-sm text-cyan-400 hover:underline mt-1">Log Out</button>
+                </div>
+            </header>
+
+            <!-- Moderator Controls -->
+            <div id="moderator-panel" class="hidden bg-gray-800 p-4 rounded-lg mb-6 max-w-3xl mx-auto">
+                 <div class="grid md:grid-cols-3 gap-4 items-end">
+                    <div class="md:col-span-1">
+                        <label for="task-name-input" class="block text-sm font-medium text-gray-300 mb-1">Task To Vote On</label>
+                        <input type="text" id="task-name-input" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" placeholder="e.g., New Login UI">
+                    </div>
+                    <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button id="reveal-votes-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reveal Votes</button>
+                        <button id="reset-round-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reset Round</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main content -->
+            <div class="w-full">
+                <!-- Current Task Display -->
+                <div class="mb-8 text-center">
+                    <h2 class="text-gray-500 text-lg">Currently Voting On</h2>
+                    <p id="task-display" class="text-3xl font-bold text-white h-10 truncate" title="Waiting for a task...">Waiting for a task...</p>
+                </div>
+
+                <!-- Results Display -->
+                <div id="results-display" class="hidden mb-8 p-4 bg-gray-800 rounded-lg max-w-md mx-auto flex justify-around items-center">
+                    <div class="text-center">
+                        <div class="text-sm text-gray-400">AVERAGE</div>
+                        <div id="average-result" class="text-3xl font-bold text-white"></div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-sm text-cyan-400">NEAREST FIBONACCI</div>
+                        <div id="fibonacci-result" class="text-3xl font-bold text-cyan-400"></div>
+                    </div>
+                </div>
+
+                <!-- Participants Grid -->
+                <div id="participants-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+                    <!-- Participant cards will be injected here -->
+                </div>
+
+                <!-- Voting Cards -->
+                <div id="voting-cards-container" class="mt-auto">
+                     <h3 class="text-center text-gray-400 mb-4 text-lg">Choose your card</h3>
+                     <div id="voting-cards" class="flex flex-wrap justify-center gap-3">
+                        <!-- Voting cards will be injected here -->
+                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm text-center">
+            <p id="modal-text" class="text-lg text-white mb-6">Are you sure?</p>
+            <div class="flex justify-center gap-4">
+                <button id="modal-confirm-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-md">Yes</button>
+                <button id="modal-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">No</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Firebase and App Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, getDoc, runTransaction, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- CONFIGURATION ---
+        const USERS = ['Jan', 'Jossie', 'Tom', 'Inder', 'Fabio', 'John', 'Mike', 'Kelly', 'Strahinja'];
+        const VOTING_CARDS = ['1', '2', '3', '5', '8', '13', '21', '🤔'];
+        const FIBONACCI_NUMBERS = VOTING_CARDS.map(v => parseInt(v)).filter(v => !isNaN(v));
+        const MODERATOR_ROLE_NAME = 'Moderator';
+
+        // --- FIREBASE SETUP ---
+        const appId = 'groupthink-app'; // Hardcoded for local use
+        
+        // Hardcoded Firebase configuration object
+        const firebaseConfig = {
+          apiKey: "AIzaSyBVSTUtqcw6XrtZCpq7rogr7LIzzkZIhh8",
+          authDomain: "groupthink-app.firebaseapp.com",
+          projectId: "groupthink-app",
+          storageBucket: "groupthink-app.appspot.com",
+          messagingSenderId: "346339295520",
+          appId: "1:346339295520:web:26bef8d01fb71a66401745",
+          measurementId: "G-3W2RJLSB58"
+        };
+        
+        let db, auth;
+        let currentUser = null;
+        let sessionListener = null;
+        let localSessionData = {};
+        let taskNameTimeout = null;
+
+        // --- DOM ELEMENTS ---
+        const loginView = document.getElementById('login-view');
+        const pokerView = document.getElementById('poker-view');
+        const userSelectionGrid = document.getElementById('user-selection-grid');
+        const moderatorTakenMsg = document.getElementById('moderator-taken-msg');
+        const currentUserDisplay = document.getElementById('current-user-display');
+        const roleDisplay = document.getElementById('role-display');
+        const logoutBtn = document.getElementById('logout-btn');
+        const moderatorPanel = document.getElementById('moderator-panel');
+        const taskNameInput = document.getElementById('task-name-input');
+        const taskDisplay = document.getElementById('task-display');
+        const participantsGrid = document.getElementById('participants-grid');
+        const votingCardsContainer = document.getElementById('voting-cards-container');
+        const votingCards = document.getElementById('voting-cards');
+        const revealVotesBtn = document.getElementById('reveal-votes-btn');
+        const resetRoundBtn = document.getElementById('reset-round-btn');
+        const resultsDisplay = document.getElementById('results-display');
+        const averageResult = document.getElementById('average-result');
+        const fibonacciResult = document.getElementById('fibonacci-result');
+        const confirmationModal = document.getElementById('confirmation-modal');
+        const modalText = document.getElementById('modal-text');
+        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+        const connectionDot = document.getElementById('connection-dot');
+        const connectionText = document.getElementById('connection-text');
+
+        // --- FIRESTORE REFERENCE ---
+        const getSessionDocRef = () => doc(db, `/artifacts/${appId}/public/data/poker_sessions/current_session`);
+
+        // --- HELPER FUNCTIONS ---
+        const getInitialSessionState = () => ({
+            moderator: null,
+            participants: {},
+            taskName: '',
+            votesRevealed: false
+        });
+
+        const findClosestFibonacci = (target) => {
+            if (isNaN(target)) return 'N/A';
+            return FIBONACCI_NUMBERS.reduce((prev, curr) => 
+                (Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev))
+        };
+
+        // --- CONNECTION MONITORING ---
+        function updateConnectionStatus(isConnected) {
+            if (connectionDot && connectionText) {
+                if (isConnected) {
+                    connectionDot.className = 'w-3 h-3 rounded-full bg-green-500';
+                    connectionText.textContent = 'Connected';
+                } else {
+                    connectionDot.className = 'w-3 h-3 rounded-full bg-red-500';
+                    connectionText.textContent = 'Offline';
+                }
+            }
+        }
+
+        function startConnectionMonitoring() {
+            window.addEventListener('online', () => updateConnectionStatus(true));
+            window.addEventListener('offline', () => updateConnectionStatus(false));
+            updateConnectionStatus(navigator.onLine);
+        }
+
+        // --- INITIALIZATION ---
+        async function initializeFirebase() {
+            if (!firebaseConfig || !firebaseConfig.apiKey) {
+                console.error("Firebase config is missing or invalid!");
+                document.body.innerHTML = `<div class="text-red-500 text-center text-xl">Firebase configuration is missing. Please set it up.</div>`;
+                return;
+            }
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                await signInAnonymously(auth);
+                console.log("Firebase initialized and user authenticated anonymously.");
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                document.body.innerHTML = `<div class="text-red-500 text-center text-xl">Error initializing Firebase. Check console.</div>`;
+            }
+        }
+
+        // --- UI RENDERING ---
+        function renderPokerRoom(sessionData) {
+            localSessionData = sessionData || {};
+            const { moderator, participants = {}, votesRevealed = false, taskName = 'Waiting for a task...' } = localSessionData;
+            
+            taskDisplay.textContent = taskName;
+            taskDisplay.title = taskName;
+            
+            renderParticipants(participants, votesRevealed, moderator);
+            
+            if (currentUser) {
+                logoutBtn.classList.remove('hidden');
+            } else {
+                logoutBtn.classList.add('hidden');
+            }
+            
+            if (currentUser === moderator) {
+                moderatorPanel.classList.remove('hidden');
+                votingCardsContainer.classList.add('hidden');
+            } else {
+                moderatorPanel.classList.add('hidden');
+                votingCardsContainer.classList.remove('hidden');
+            }
+            
+            if (votesRevealed) {
+                const voters = Object.values(participants).filter(p => p.voted && !isNaN(parseInt(p.vote)));
+                const votes = voters.map(p => parseInt(p.vote));
+                const average = votes.length > 0 ? (votes.reduce((a, b) => a + b, 0) / votes.length).toFixed(1) : 'N/A';
+                const closestFib = findClosestFibonacci(parseFloat(average));
+                
+                averageResult.textContent = average;
+                fibonacciResult.textContent = closestFib;
+                resultsDisplay.classList.remove('hidden');
+            } else {
+                resultsDisplay.classList.add('hidden');
+            }
+        }
+
+        function renderParticipants(participants, votesRevealed, moderator) {
+            participantsGrid.innerHTML = '';
+            Object.entries(participants).forEach(([name, data]) => {
+                if (name === moderator) return; // Don't show moderator as a participant card
+                const hasVoted = data.voted || false;
+                const vote = data.vote;
+                const card = document.createElement('div');
+                card.className = `card relative w-full h-36 rounded-lg ${votesRevealed ? 'is-flipped' : ''}`;
+                card.innerHTML = `
+                    <div class="card-inner relative w-full h-full">
+                        <div class="card-front absolute w-full h-full bg-gray-700 rounded-lg flex flex-col items-center justify-center p-2 border-2 ${hasVoted ? 'border-green-500' : 'border-gray-600'}">
+                            <span class="font-bold text-lg text-center">${name}</span>
+                            ${hasVoted ? '<span class="text-green-400 mt-2">Voted ✓</span>' : '<span class="text-gray-400 mt-2">Waiting...</span>'}
+                        </div>
+                        <div class="card-back absolute w-full h-full bg-gray-800 rounded-lg flex flex-col items-center justify-center p-2 border-2 border-cyan-500">
+                            <span class="font-bold text-lg text-center mb-2">${name}</span>
+                            <span class="text-4xl font-bold text-cyan-400">${vote ?? ''}</span>
+                        </div>
+                    </div>`;
+                participantsGrid.appendChild(card);
+            });
+        }
+
+        // --- USER ACTIONS ---
+        async function handleLogin(name) {
+            if (!name || name.trim() === '') {
+                console.error("Invalid user name");
+                return;
+            }
+            
+            if (currentUser) {
+                console.log("User already logged in");
+                return;
+            }
+            
+            const isTryingToModerate = (name === MODERATOR_ROLE_NAME);
+            const docRef = getSessionDocRef();
+            
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const sessionDoc = await transaction.get(docRef);
+                    const sessionData = sessionDoc.data() || {};
+                    
+                    if (isTryingToModerate) {
+                        // Allow moderator takeover
+                        const updates = { moderator: name };
+                         if (!sessionDoc.exists()) {
+                            transaction.set(docRef, { ...getInitialSessionState(), ...updates });
+                        } else {
+                            transaction.update(docRef, updates);
+                        }
+                    } else {
+                        const participantUpdate = { [`participants.${name}`]: { voted: false, vote: null } };
+                        if (!sessionDoc.exists()) {
+                            transaction.set(docRef, { ...getInitialSessionState(), ...participantUpdate });
+                        } else {
+                            transaction.update(docRef, participantUpdate);
+                        }
+                    }
+                });
+
+                currentUser = name;
+                loginView.classList.add('hidden');
+                pokerView.classList.remove('hidden');
+                currentUserDisplay.textContent = currentUser;
+                
+                const finalDoc = await getDoc(docRef);
+                const finalModerator = finalDoc.data()?.moderator;
+                roleDisplay.textContent = (name === finalModerator) ? 'Moderator' : 'Participant';
+                
+                if (!sessionListener) {
+                    sessionListener = onSnapshot(docRef, (doc) => {
+                        updateConnectionStatus(true);
+                        renderPokerRoom(doc.data());
+                    }, (error) => {
+                        console.error("Snapshot listener error:", error);
+                        updateConnectionStatus(false);
+                        setTimeout(() => {
+                            console.log("Retrying connection...");
+                            window.location.reload();
+                        }, 5000);
+                    });
+                }
+            } catch (error) {
+                console.error("Login failed:", error.message);
+            }
+        }
+
+        async function handleLogout() {
+            if (!currentUser) return;
+            const isModerator = localSessionData.moderator === currentUser;
+            const confirmationMessage = isModerator 
+                ? "Are you sure you want to log out? This will free up the Moderator role for others."
+                : "Are you sure you want to log out?";
+            
+            const confirmed = await showConfirmationModal(confirmationMessage);
+            if (!confirmed) return;
+
+            const docRef = getSessionDocRef();
+            try {
+                const updates = {};
+                if (isModerator) {
+                    updates.moderator = null;
+                } else {
+                    updates[`participants.${currentUser}`] = deleteField();
+                }
+                await updateDoc(docRef, updates);
+                window.location.reload();
+            } catch (error) {
+                console.error("Error logging out:", error);
+                if (error.code === 'not-found') {
+                    window.location.reload();
+                }
+            }
+        }
+
+        async function handleVote(value) {
+            if (!currentUser || localSessionData.votesRevealed) {
+                console.log("Voting is locked.");
+                return;
+            }
+            try {
+                await updateDoc(getSessionDocRef(), { [`participants.${currentUser}.vote`]: value, [`participants.${currentUser}.voted`]: true });
+            } catch (error) {
+                console.error("Error voting:", error);
+                alert("Failed to submit vote. Please try again.");
+            }
+        }
+
+        // --- MODERATOR ACTIONS ---
+        async function handleResetRound() {
+            try {
+                resetRoundBtn.disabled = true;
+                resetRoundBtn.textContent = 'Resetting...';
+                const updates = {
+                    votesRevealed: false,
+                    taskName: ''
+                };
+                const participants = localSessionData.participants || {};
+                Object.keys(participants).forEach(name => {
+                    updates[`participants.${name}.voted`] = false;
+                    updates[`participants.${name}.vote`] = null;
+                });
+                taskNameInput.value = '';
+                await updateDoc(getSessionDocRef(), updates);
+            } catch (error) {
+                console.error("Error resetting round:", error);
+                alert("Failed to reset round. Please try again.");
+            } finally {
+                resetRoundBtn.disabled = false;
+                resetRoundBtn.textContent = 'Reset Round';
+            }
+        }
+
+        async function handleRevealVotes() {
+            try {
+                revealVotesBtn.disabled = true;
+                revealVotesBtn.textContent = 'Revealing...';
+                await updateDoc(getSessionDocRef(), { votesRevealed: true });
+            } catch (error) {
+                console.error("Error revealing votes:", error);
+                alert("Failed to reveal votes. Please try again.");
+            } finally {
+                revealVotesBtn.disabled = false;
+                revealVotesBtn.textContent = 'Reveal Votes';
+            }
+        }
+        
+        async function handleTaskNameChange() {
+            clearTimeout(taskNameTimeout);
+            taskNameTimeout = setTimeout(async () => {
+                try {
+                    const taskName = taskNameInput.value.trim();
+                    await updateDoc(getSessionDocRef(), { taskName: taskName });
+                } catch (error) {
+                    console.error("Error updating task name:", error);
+                    alert("Failed to update task name. Please try again.");
+                }
+            }, 500);
+        }
+
+        // --- MODAL ---
+        function showConfirmationModal(message) {
+            return new Promise((resolve) => {
+                modalText.textContent = message;
+                confirmationModal.classList.remove('hidden');
+                
+                const onConfirm = () => {
+                    confirmationModal.classList.add('hidden');
+                    resolve(true);
+                    cleanup();
+                };
+
+                const onCancel = () => {
+                    confirmationModal.classList.add('hidden');
+                    resolve(false);
+                    cleanup();
+                };
+                
+                const cleanup = () => {
+                    modalConfirmBtn.removeEventListener('click', onConfirm);
+                    modalCancelBtn.removeEventListener('click', onCancel);
+                };
+
+                modalConfirmBtn.addEventListener('click', onConfirm);
+                modalCancelBtn.addEventListener('click', onCancel);
+            });
+        }
+
+        // --- EVENT LISTENERS & INITIALIZER ---
+        function attachEventListeners() {
+            // Create Moderator button
+            const moderatorButton = document.createElement('button');
+            moderatorButton.textContent = MODERATOR_ROLE_NAME;
+            moderatorButton.id = 'moderator-login-btn';
+            moderatorButton.className = "w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-4 px-2 rounded-lg shadow-md transition-all";
+            moderatorButton.onclick = () => handleLogin(MODERATOR_ROLE_NAME);
+            userSelectionGrid.appendChild(moderatorButton);
+
+            // Create Participant buttons
+            USERS.forEach(name => {
+                const button = document.createElement('button');
+                button.textContent = name;
+                button.className = "w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-4 px-2 rounded-lg shadow-md transition-all";
+                button.onclick = () => handleLogin(name);
+                userSelectionGrid.appendChild(button);
+            });
+
+            VOTING_CARDS.forEach(value => {
+                const card = document.createElement('button');
+                card.textContent = value;
+                card.className = "vote-card w-16 h-24 bg-gray-700 rounded-lg text-2xl font-bold flex items-center justify-center shadow-lg transition-all hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500";
+                card.onclick = () => handleVote(value);
+                votingCards.appendChild(card);
+            });
+
+            logoutBtn.onclick = handleLogout;
+            resetRoundBtn.onclick = handleResetRound;
+            revealVotesBtn.onclick = handleRevealVotes;
+            taskNameInput.addEventListener('input', handleTaskNameChange);
+        }
+
+        async function init() {
+            await initializeFirebase();
+            if (!auth || !db) return;
+            attachEventListeners();
+            startConnectionMonitoring();
+            
+            const sessionDoc = await getDoc(getSessionDocRef());
+            const sessionData = sessionDoc.data();
+            if (sessionData && sessionData.moderator) {
+                moderatorTakenMsg.textContent = `The moderator role is taken.`;
+                moderatorTakenMsg.classList.remove('hidden');
+            } else {
+                 moderatorTakenMsg.classList.add('hidden');
+                if (!sessionData) {
+                    await setDoc(getSessionDocRef(), getInitialSessionState());
+                }
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

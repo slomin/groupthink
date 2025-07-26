@@ -1,0 +1,13 @@
+{
+  "name": "groupthink",
+  "version": "1.0.0",
+  "description": "A Firebase-based voting application",
+  "main": "index.html",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js && npx http-server dist -p 3000"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

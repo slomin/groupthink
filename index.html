@@ -210,6 +210,7 @@
 
         const findClosestFibonacci = (target) => {
             if (isNaN(target)) return 'N/A';
+            if (FIBONACCI_NUMBERS.length === 0) return 'N/A';
             return FIBONACCI_NUMBERS.reduce((prev, curr) => 
                 (Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev))
         };
@@ -277,7 +278,7 @@
             }
             
             if (votesRevealed) {
-                const voters = Object.values(participants).filter(p => p.voted && !isNaN(parseInt(p.vote)));
+                const voters = Object.values(participants).filter(p => p.voted && p.vote != null && !isNaN(parseInt(p.vote)));
                 const votes = voters.map(p => parseInt(p.vote));
                 const average = votes.length > 0 ? (votes.reduce((a, b) => a + b, 0) / votes.length).toFixed(1) : 'N/A';
                 const closestFib = findClosestFibonacci(parseFloat(average));

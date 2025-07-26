@@ -8,6 +8,12 @@
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Vercel Analytics -->
+    <script type="module">
+        import { inject } from '@vercel/analytics';
+        inject();
+    </script>
+    
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,20 +28,6 @@
         }
         .transition-all {
             transition: all 0.3s ease-in-out;
-        }
-        .card-inner {
-            transform-style: preserve-3d;
-            transition: transform 0.6s;
-        }
-        .card.is-flipped .card-inner {
-            transform: rotateY(180deg);
-        }
-        .card-front, .card-back {
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
-        }
-        .card-back {
-            transform: rotateY(180deg);
         }
         #confirmation-modal {
             transition: opacity 0.3s ease;
@@ -84,9 +76,10 @@
                         <label for="task-name-input" class="block text-sm font-medium text-gray-300 mb-1">Task To Vote On</label>
                         <input type="text" id="task-name-input" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" placeholder="e.g., New Login UI">
                     </div>
-                    <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button id="reveal-votes-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reveal Votes</button>
-                        <button id="reset-round-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reset Round</button>
+                    <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <button id="reveal-votes-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reveal Votes</button>
+                        <button id="reset-round-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reset Round</button>
+                        <button id="nuke-everything-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-all">Nuke Everything</button>
                     </div>
                 </div>
             </div>
@@ -154,15 +147,15 @@
         // --- FIREBASE SETUP ---
         const appId = 'groupthink-app'; // Hardcoded for local use
         
-        // Hardcoded Firebase configuration object
+        // Firebase configuration - replaced by build process with environment variables
         const firebaseConfig = {
-          apiKey: "AIzaSyBVSTUtqcw6XrtZCpq7rogr7LIzzkZIhh8",
-          authDomain: "groupthink-app.firebaseapp.com",
-          projectId: "groupthink-app",
-          storageBucket: "groupthink-app.appspot.com",
-          messagingSenderId: "346339295520",
-          appId: "1:346339295520:web:26bef8d01fb71a66401745",
-          measurementId: "G-3W2RJLSB58"
+          apiKey: "",
+          authDomain: "",
+          projectId: "",
+          storageBucket: "",
+          messagingSenderId: "",
+          appId: "",
+          measurementId: ""
         };
         
         let db, auth;
@@ -187,6 +180,7 @@
         const votingCards = document.getElementById('voting-cards');
         const revealVotesBtn = document.getElementById('reveal-votes-btn');
         const resetRoundBtn = document.getElementById('reset-round-btn');
+        const nukeEverythingBtn = document.getElementById('nuke-everything-btn');
         const resultsDisplay = document.getElementById('results-display');
         const averageResult = document.getElementById('average-result');
         const fibonacciResult = document.getElementById('fibonacci-result');
@@ -200,6 +194,41 @@
         // --- FIRESTORE REFERENCE ---
         const getSessionDocRef = () => doc(db, `/artifacts/${appId}/public/data/poker_sessions/current_session`);
 
+        // --- URL ROUTING ---
+        function getPathUser() {
+            const path = window.location.pathname.toLowerCase();
+            
+            // Remove leading slash and get the path
+            const pathName = path.replace(/^\/+/, '').replace(/\/+$/, '');
+            
+            if (pathName === 'moderator') {
+                return { user: MODERATOR_ROLE_NAME, isModerator: true };
+            }
+            
+            // Check if path matches a user (case insensitive)
+            const matchedUser = USERS.find(user => user.toLowerCase() === pathName);
+            if (matchedUser) {
+                return { user: matchedUser, isModerator: false };
+            }
+            
+            return { user: null, isModerator: false };
+        }
+
+        function updateUrl(user, isModerator) {
+            if (isModerator) {
+                window.history.replaceState({}, '', '/moderator');
+            } else if (user) {
+                window.history.replaceState({}, '', `/${user.toLowerCase()}`);
+            } else {
+                window.history.replaceState({}, '', '/');
+            }
+        }
+
+        function clearUrl() {
+            window.history.replaceState({}, '', '/');
+        }
+
+
         // --- HELPER FUNCTIONS ---
         const getInitialSessionState = () => ({
             moderator: null,
@@ -210,6 +239,7 @@
 
         const findClosestFibonacci = (target) => {
             if (isNaN(target)) return 'N/A';
+            if (FIBONACCI_NUMBERS.length === 0) return 'N/A';
             return FIBONACCI_NUMBERS.reduce((prev, curr) => 
                 (Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev))
         };
@@ -277,7 +307,7 @@
             }
             
             if (votesRevealed) {
-                const voters = Object.values(participants).filter(p => p.voted && !isNaN(parseInt(p.vote)));
+                const voters = Object.values(participants).filter(p => p.voted && p.vote != null && !isNaN(parseInt(p.vote)));
                 const votes = voters.map(p => parseInt(p.vote));
                 const average = votes.length > 0 ? (votes.reduce((a, b) => a + b, 0) / votes.length).toFixed(1) : 'N/A';
                 const closestFib = findClosestFibonacci(parseFloat(average));
@@ -297,18 +327,20 @@
                 const hasVoted = data.voted || false;
                 const vote = data.vote;
                 const card = document.createElement('div');
-                card.className = `card relative w-full h-36 rounded-lg ${votesRevealed ? 'is-flipped' : ''}`;
-                card.innerHTML = `
-                    <div class="card-inner relative w-full h-full">
-                        <div class="card-front absolute w-full h-full bg-gray-700 rounded-lg flex flex-col items-center justify-center p-2 border-2 ${hasVoted ? 'border-green-500' : 'border-gray-600'}">
-                            <span class="font-bold text-lg text-center">${name}</span>
-                            ${hasVoted ? '<span class="text-green-400 mt-2">Voted ✓</span>' : '<span class="text-gray-400 mt-2">Waiting...</span>'}
-                        </div>
-                        <div class="card-back absolute w-full h-full bg-gray-800 rounded-lg flex flex-col items-center justify-center p-2 border-2 border-cyan-500">
-                            <span class="font-bold text-lg text-center mb-2">${name}</span>
-                            <span class="text-4xl font-bold text-cyan-400">${vote ?? ''}</span>
-                        </div>
-                    </div>`;
+                card.className = 'relative w-full h-36 rounded-lg bg-gray-700 flex flex-col items-center justify-center p-2 border-2';
+                
+                if (votesRevealed) {
+                    card.className += ' border-cyan-500 bg-gray-800';
+                    card.innerHTML = `
+                        <span class="font-bold text-lg text-center mb-2">${name}</span>
+                        <span class="text-4xl font-bold text-cyan-400">${vote ?? ''}</span>`;
+                } else {
+                    card.className += hasVoted ? ' border-green-500' : ' border-gray-600';
+                    card.innerHTML = `
+                        <span class="font-bold text-lg text-center">${name}</span>
+                        ${hasVoted ? '<span class="text-green-400 mt-2">Voted ✓</span>' : '<span class="text-gray-400 mt-2">Waiting...</span>'}`;
+                }
+                
                 participantsGrid.appendChild(card);
             });
         }
@@ -358,7 +390,11 @@
                 
                 const finalDoc = await getDoc(docRef);
                 const finalModerator = finalDoc.data()?.moderator;
-                roleDisplay.textContent = (name === finalModerator) ? 'Moderator' : 'Participant';
+                const isModerator = (name === finalModerator);
+                roleDisplay.textContent = isModerator ? 'Moderator' : 'Participant';
+                
+                // Update URL based on role
+                updateUrl(name, isModerator);
                 
                 if (!sessionListener) {
                     sessionListener = onSnapshot(docRef, (doc) => {
@@ -397,10 +433,29 @@
                     updates[`participants.${currentUser}`] = deleteField();
                 }
                 await updateDoc(docRef, updates);
-                window.location.reload();
+                
+                // Clear URL parameters and redirect to main view
+                clearUrl();
+                currentUser = null;
+                
+                // Stop listening to session updates
+                if (sessionListener) {
+                    sessionListener();
+                    sessionListener = null;
+                }
+                
+                // Force redirect to root to ensure clean logout
+                if (window.location.pathname !== '/') {
+                    window.location.href = '/';
+                } else {
+                    // If already at root, just reload to re-initialize properly
+                    window.location.reload();
+                }
+                
             } catch (error) {
                 console.error("Error logging out:", error);
                 if (error.code === 'not-found') {
+                    clearUrl();
                     window.location.reload();
                 }
             }
@@ -471,6 +526,31 @@
             }, 500);
         }
 
+        async function handleNukeEverything() {
+            const confirmed = await showConfirmationModal("Are you sure you want to nuke everything? This will reset all Firebase data and refresh the app for everyone.");
+            if (!confirmed) return;
+            
+            try {
+                nukeEverythingBtn.disabled = true;
+                nukeEverythingBtn.textContent = 'Nuking...';
+                
+                // Reset to initial state
+                await setDoc(getSessionDocRef(), getInitialSessionState());
+                
+                // Force refresh for everyone by updating a timestamp field
+                await updateDoc(getSessionDocRef(), { lastNuke: Date.now() });
+                
+                // Refresh current page
+                window.location.reload();
+            } catch (error) {
+                console.error("Error nuking everything:", error);
+                alert("Failed to nuke everything. Please try again.");
+            } finally {
+                nukeEverythingBtn.disabled = false;
+                nukeEverythingBtn.textContent = 'Nuke Everything';
+            }
+        }
+
         // --- MODAL ---
         function showConfirmationModal(message) {
             return new Promise((resolve) => {
@@ -498,6 +578,7 @@
                 modalCancelBtn.addEventListener('click', onCancel);
             });
         }
+
 
         // --- EVENT LISTENERS & INITIALIZER ---
         function attachEventListeners() {
@@ -529,6 +610,7 @@
             logoutBtn.onclick = handleLogout;
             resetRoundBtn.onclick = handleResetRound;
             revealVotesBtn.onclick = handleRevealVotes;
+            nukeEverythingBtn.onclick = handleNukeEverything;
             taskNameInput.addEventListener('input', handleTaskNameChange);
         }
 
@@ -538,8 +620,20 @@
             attachEventListeners();
             startConnectionMonitoring();
             
+            // Check for path-based routing for automatic login
+            const pathInfo = getPathUser();
+            let autoLoginUser = pathInfo.user;
+            
             const sessionDoc = await getDoc(getSessionDocRef());
             const sessionData = sessionDoc.data();
+            
+            // Handle automatic login if URL parameters are present
+            if (autoLoginUser) {
+                await handleLogin(autoLoginUser);
+                return; // Exit early since we're logging in automatically
+            }
+            
+            // Show moderator status message for manual login
             if (sessionData && sessionData.moderator) {
                 moderatorTakenMsg.textContent = `The moderator role is taken.`;
                 moderatorTakenMsg.classList.remove('hidden');

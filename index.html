@@ -84,9 +84,10 @@
                         <label for="task-name-input" class="block text-sm font-medium text-gray-300 mb-1">Task To Vote On</label>
                         <input type="text" id="task-name-input" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" placeholder="e.g., New Login UI">
                     </div>
-                    <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button id="reveal-votes-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reveal Votes</button>
-                        <button id="reset-round-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reset Round</button>
+                    <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <button id="reveal-votes-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reveal Votes</button>
+                        <button id="reset-round-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reset Round</button>
+                        <button id="nuke-everything-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-all">Nuke Everything</button>
                     </div>
                 </div>
             </div>
@@ -187,6 +188,7 @@
         const votingCards = document.getElementById('voting-cards');
         const revealVotesBtn = document.getElementById('reveal-votes-btn');
         const resetRoundBtn = document.getElementById('reset-round-btn');
+        const nukeEverythingBtn = document.getElementById('nuke-everything-btn');
         const resultsDisplay = document.getElementById('results-display');
         const averageResult = document.getElementById('average-result');
         const fibonacciResult = document.getElementById('fibonacci-result');
@@ -472,6 +474,31 @@
             }, 500);
         }
 
+        async function handleNukeEverything() {
+            const confirmed = await showConfirmationModal("Are you sure you want to nuke everything? This will reset all Firebase data and refresh the app for everyone.");
+            if (!confirmed) return;
+            
+            try {
+                nukeEverythingBtn.disabled = true;
+                nukeEverythingBtn.textContent = 'Nuking...';
+                
+                // Reset to initial state
+                await setDoc(getSessionDocRef(), getInitialSessionState());
+                
+                // Force refresh for everyone by updating a timestamp field
+                await updateDoc(getSessionDocRef(), { lastNuke: Date.now() });
+                
+                // Refresh current page
+                window.location.reload();
+            } catch (error) {
+                console.error("Error nuking everything:", error);
+                alert("Failed to nuke everything. Please try again.");
+            } finally {
+                nukeEverythingBtn.disabled = false;
+                nukeEverythingBtn.textContent = 'Nuke Everything';
+            }
+        }
+
         // --- MODAL ---
         function showConfirmationModal(message) {
             return new Promise((resolve) => {
@@ -530,6 +557,7 @@
             logoutBtn.onclick = handleLogout;
             resetRoundBtn.onclick = handleResetRound;
             revealVotesBtn.onclick = handleRevealVotes;
+            nukeEverythingBtn.onclick = handleNukeEverything;
             taskNameInput.addEventListener('input', handleTaskNameChange);
         }
 

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Groupthink</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -42,10 +43,10 @@
         <!-- Login View -->
         <div id="login-view" class="text-center">
             <!-- App Image -->
-            <img src="image_1.jpg" alt="Groupthink Logo" class="w-48 h-auto mx-auto mb-4 rounded-lg shadow-lg">
+            <img id="app-logo" alt="Groupthink Logo" class="w-48 h-auto mx-auto mb-4 rounded-lg shadow-lg">
             
             <h1 class="text-4xl font-bold text-cyan-400 mb-2">Groupthink</h1>
-            <p class="text-lg text-gray-400 mb-6">Select your role to join the session</p>
+            <p class="text-lg text-gray-400 mb-6">v0.3</p>
             <div id="user-selection-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-w-4xl mx-auto">
                 <!-- User buttons will be injected here -->
             </div>
@@ -71,16 +72,16 @@
 
             <!-- Moderator Controls -->
             <div id="moderator-panel" class="hidden bg-gray-800 p-4 rounded-lg mb-6 max-w-3xl mx-auto">
-                 <div class="grid md:grid-cols-3 gap-4 items-end">
-                    <div class="md:col-span-1">
-                        <label for="task-name-input" class="block text-sm font-medium text-gray-300 mb-1">Task To Vote On</label>
-                        <input type="text" id="task-name-input" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" placeholder="e.g., New Login UI">
-                    </div>
-                    <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <button id="reveal-votes-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reveal Votes</button>
-                        <button id="reset-round-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reset Round</button>
-                        <button id="nuke-everything-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-all">Nuke Everything</button>
-                    </div>
+                <!-- Task Input - Full Width on Top -->
+                <div class="mb-4">
+                    <label for="task-name-input" class="block text-sm font-medium text-gray-300 mb-2">Task To Vote On</label>
+                    <input type="text" id="task-name-input" class="w-full bg-gray-700 border border-gray-600 rounded-md px-4 py-3 text-white text-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none" placeholder="e.g., New Login UI" autocomplete="off">
+                </div>
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button id="reveal-votes-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reveal Votes</button>
+                    <button id="reset-round-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-all">Reset Round</button>
+                    <button id="nuke-everything-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-all">Nuke Everything</button>
                 </div>
             </div>
 
@@ -143,6 +144,20 @@
         const VOTING_CARDS = ['1', '2', '3', '5', '8', '13', '21', '🤔'];
         const FIBONACCI_NUMBERS = VOTING_CARDS.map(v => parseInt(v)).filter(v => !isNaN(v));
         const MODERATOR_ROLE_NAME = 'Moderator';
+        
+        // --- LOGO CONFIGURATION ---
+        const LOGO_FILES = ['image_01.jpg', 'image_02.jpg', 'image_03.jpg', 'image_04.jpg'];
+        
+        function setRandomLogo() {
+            const randomIndex = Math.floor(Math.random() * LOGO_FILES.length);
+            const selectedLogo = LOGO_FILES[randomIndex];
+            const logoElement = document.getElementById('app-logo');
+            console.log('Setting logo:', selectedLogo, 'Element found:', !!logoElement);
+            if (logoElement) {
+                logoElement.src = selectedLogo;
+                console.log('Logo src set to:', logoElement.src);
+            }
+        }
 
         // --- FIREBASE SETUP ---
         const appId = 'groupthink-app'; // Hardcoded for local use
@@ -318,11 +333,21 @@
             } else {
                 resultsDisplay.classList.add('hidden');
             }
+            
+            // Update voting card visuals for current user
+            if (currentUser && participants[currentUser] && participants[currentUser].vote && !votesRevealed) {
+                updateVotingCardVisuals(participants[currentUser].vote);
+            } else if (votesRevealed || !participants[currentUser]?.vote) {
+                // Reset card visuals when votes are revealed or no vote selected
+                updateVotingCardVisuals(null);
+            }
         }
 
         function renderParticipants(participants, votesRevealed, moderator) {
             participantsGrid.innerHTML = '';
-            Object.entries(participants).forEach(([name, data]) => {
+            // Sort participants alphabetically by name for consistent ordering
+            const sortedParticipants = Object.entries(participants).sort(([nameA], [nameB]) => nameA.localeCompare(nameB));
+            sortedParticipants.forEach(([name, data]) => {
                 if (name === moderator) return; // Don't show moderator as a participant card
                 const hasVoted = data.voted || false;
                 const vote = data.vote;
@@ -468,14 +493,29 @@
             }
             try {
                 await updateDoc(getSessionDocRef(), { [`participants.${currentUser}.vote`]: value, [`participants.${currentUser}.voted`]: true });
+                updateVotingCardVisuals(value);
             } catch (error) {
                 console.error("Error voting:", error);
                 alert("Failed to submit vote. Please try again.");
             }
         }
 
+        function updateVotingCardVisuals(selectedValue) {
+            const cards = document.querySelectorAll('.vote-card');
+            cards.forEach(card => {
+                if (selectedValue && card.textContent === selectedValue) {
+                    card.className = "vote-card w-16 h-24 bg-green-600 border-2 border-green-400 rounded-lg text-2xl font-bold flex items-center justify-center shadow-lg transition-all text-white";
+                } else {
+                    card.className = "vote-card w-16 h-24 bg-gray-700 rounded-lg text-2xl font-bold flex items-center justify-center shadow-lg transition-all hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500";
+                }
+            });
+        }
+
         // --- MODERATOR ACTIONS ---
         async function handleResetRound() {
+            const confirmed = await showConfirmationModal("Are you sure?");
+            if (!confirmed) return;
+            
             try {
                 resetRoundBtn.disabled = true;
                 resetRoundBtn.textContent = 'Resetting...';
@@ -540,8 +580,20 @@
                 // Force refresh for everyone by updating a timestamp field
                 await updateDoc(getSessionDocRef(), { lastNuke: Date.now() });
                 
-                // Refresh current page
-                window.location.reload();
+                // Clear current user and session listener
+                currentUser = null;
+                if (sessionListener) {
+                    sessionListener();
+                    sessionListener = null;
+                }
+                
+                // Force redirect to main page
+                clearUrl();
+                if (window.location.pathname !== '/') {
+                    window.location.href = '/';
+                } else {
+                    window.location.reload();
+                }
             } catch (error) {
                 console.error("Error nuking everything:", error);
                 alert("Failed to nuke everything. Please try again.");
@@ -615,6 +667,7 @@
         }
 
         async function init() {
+            setRandomLogo(); // Set random logo first
             await initializeFirebase();
             if (!auth || !db) return;
             attachEventListeners();

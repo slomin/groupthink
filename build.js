@@ -37,7 +37,7 @@ if (!fs.existsSync(outputDir)) {
 fs.writeFileSync(path.join(outputDir, 'index.html'), htmlContent);
 
 // Copy other static files
-const staticFiles = ['image_1.jpg', 'LICENSE'];
+const staticFiles = ['image_01.jpg', 'image_02.jpg', 'image_03.jpg', 'image_04.jpg'];
 staticFiles.forEach(file => {
   const srcPath = path.join(__dirname, file);
   const destPath = path.join(outputDir, file);

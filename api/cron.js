@@ -27,7 +27,8 @@ const getInitialSessionState = () => ({
     moderator: null,
     participants: {},
     taskName: '',
-    votesRevealed: false
+    votesRevealed: false,
+    lastReset: Date.now()
 });
 
 module.exports = async (req, res) => {

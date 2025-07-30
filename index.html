@@ -46,7 +46,8 @@
             <img id="app-logo" alt="Groupthink Logo" class="w-48 h-auto mx-auto mb-4 rounded-lg shadow-lg">
             
             <h1 class="text-4xl font-bold text-cyan-400 mb-2">Groupthink</h1>
-            <p class="text-lg text-gray-400 mb-6">v0.3</p>
+            <p class="text-lg text-gray-400 mb-2">v0.4</p>
+            <p id="last-reset-display" class="text-sm text-gray-500 mb-6"></p>
             <div id="user-selection-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-w-4xl mx-auto">
                 <!-- User buttons will be injected here -->
             </div>
@@ -152,10 +153,8 @@
             const randomIndex = Math.floor(Math.random() * LOGO_FILES.length);
             const selectedLogo = LOGO_FILES[randomIndex];
             const logoElement = document.getElementById('app-logo');
-            console.log('Setting logo:', selectedLogo, 'Element found:', !!logoElement);
             if (logoElement) {
                 logoElement.src = selectedLogo;
-                console.log('Logo src set to:', logoElement.src);
             }
         }
 
@@ -249,7 +248,8 @@
             moderator: null,
             participants: {},
             taskName: '',
-            votesRevealed: false
+            votesRevealed: false,
+            lastReset: Date.now()
         });
 
         const findClosestFibonacci = (target) => {
@@ -257,6 +257,29 @@
             if (FIBONACCI_NUMBERS.length === 0) return 'N/A';
             return FIBONACCI_NUMBERS.reduce((prev, curr) => 
                 (Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev))
+        };
+
+        const formatLastReset = (timestamp) => {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            const formatter = new Intl.DateTimeFormat('en-GB', {
+                timeZone: 'Europe/London',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZoneName: 'short'
+            });
+            return `Last reset: ${formatter.format(date)}`;
+        };
+
+        const updateLastResetDisplay = (sessionData) => {
+            const lastResetElement = document.getElementById('last-reset-display');
+            if (lastResetElement && sessionData?.lastReset) {
+                const formattedText = formatLastReset(sessionData.lastReset);
+                lastResetElement.textContent = formattedText;
+            }
         };
 
         // --- CONNECTION MONITORING ---
@@ -278,7 +301,7 @@
             updateConnectionStatus(navigator.onLine);
         }
 
-        // --- INITIALIZATION ---
+        // --- FIREBASE INITIALIZATION ---
         async function initializeFirebase() {
             if (!firebaseConfig || !firebaseConfig.apiKey) {
                 console.error("Firebase config is missing or invalid!");
@@ -574,11 +597,8 @@
                 nukeEverythingBtn.disabled = true;
                 nukeEverythingBtn.textContent = 'Nuking...';
                 
-                // Reset to initial state
+                // Reset to initial state (includes lastReset timestamp)
                 await setDoc(getSessionDocRef(), getInitialSessionState());
-                
-                // Force refresh for everyone by updating a timestamp field
-                await updateDoc(getSessionDocRef(), { lastNuke: Date.now() });
                 
                 // Clear current user and session listener
                 currentUser = null;
@@ -680,6 +700,20 @@
             const sessionDoc = await getDoc(getSessionDocRef());
             const sessionData = sessionDoc.data();
             
+            // Ensure lastReset field exists - if not, add it
+            if (!sessionData?.lastReset) {
+                const timestamp = Date.now();
+                if (!sessionData) {
+                    await setDoc(getSessionDocRef(), getInitialSessionState());
+                    updateLastResetDisplay({ lastReset: timestamp });
+                } else {
+                    await updateDoc(getSessionDocRef(), { lastReset: timestamp });
+                    updateLastResetDisplay({ ...sessionData, lastReset: timestamp });
+                }
+            } else {
+                updateLastResetDisplay(sessionData);
+            }
+            
             // Handle automatic login if URL parameters are present
             if (autoLoginUser) {
                 await handleLogin(autoLoginUser);
@@ -692,9 +726,6 @@
                 moderatorTakenMsg.classList.remove('hidden');
             } else {
                  moderatorTakenMsg.classList.add('hidden');
-                if (!sessionData) {
-                    await setDoc(getSessionDocRef(), getInitialSessionState());
-                }
             }
         }
 
